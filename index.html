@@ -219,21 +219,44 @@
       const STORAGE_KEY = 'lis-controle-observacao-v1';
       const CLASSES = [
         'Coral infantil matutino',
-        'Coral infantil vespertino',
+        'Coral infantil vespertino — Turma A',
+        'Coral infantil vespertino — Turma B',
         'Vôlei feminino',
         'Vôlei OAB',
         'Piano 01',
         'Piano 02',
         'Vôlei de VNI',
-        'Orquestra Jonice Tristão matutino',
-        'Orquestra Jonice Tristão vespertino 1',
-        'Orquestra Jonice Tristão vespertino 2',
+        'Orquestra Jonice Tristão — Violino matutino',
+        'Orquestra Jonice Tristão — Violino vespertino 1 — Turma A',
+        'Orquestra Jonice Tristão — Violino vespertino 1 — Turma B',
+        'Orquestra Jonice Tristão — Violino vespertino 2 — Turma A',
+        'Orquestra Jonice Tristão — Violino vespertino 2 — Turma B',
+        'Orquestra Jonice Tristão — Violoncelo — Turma A',
+        'Orquestra Jonice Tristão — Violoncelo — Turma B',
         'Orquestra Jonice Tristão noturno',
-        'Orquestra de violas 01',
-        'Orquestra de violas 02',
+        'Orquestra de viola caipira — Turma A',
+        'Orquestra de viola caipira — Turma B',
         'Sopros e madeiras matutino',
-        'Sopros e madeiras vespertino'
+        'Sopros e madeiras vespertino — Turma A',
+        'Sopros e madeiras vespertino — Turma B',
+        'Serviço de Convivência e Fortalecimento de Vínculos'
       ];
+      const LEGACY_CLASSES = [
+        'Coral infantil matutino', 'Coral infantil vespertino', 'Vôlei feminino', 'Vôlei OAB',
+        'Piano 01', 'Piano 02', 'Vôlei de VNI', 'Orquestra Jonice Tristão matutino',
+        'Orquestra Jonice Tristão vespertino 1', 'Orquestra Jonice Tristão vespertino 2',
+        'Orquestra Jonice Tristão noturno', 'Orquestra de violas 01', 'Orquestra de violas 02',
+        'Sopros e madeiras matutino', 'Sopros e madeiras vespertino'
+      ];
+      const LEGACY_MIGRATIONS = {
+        'Coral infantil vespertino': ['Coral infantil vespertino — Turma A', 'Coral infantil vespertino — Turma B'],
+        'Orquestra Jonice Tristão matutino': ['Orquestra Jonice Tristão — Violino matutino'],
+        'Orquestra Jonice Tristão vespertino 1': ['Orquestra Jonice Tristão — Violino vespertino 1 — Turma A', 'Orquestra Jonice Tristão — Violino vespertino 1 — Turma B'],
+        'Orquestra Jonice Tristão vespertino 2': ['Orquestra Jonice Tristão — Violino vespertino 2 — Turma A', 'Orquestra Jonice Tristão — Violino vespertino 2 — Turma B'],
+        'Orquestra de violas 01': ['Orquestra de viola caipira — Turma A'],
+        'Orquestra de violas 02': ['Orquestra de viola caipira — Turma B'],
+        'Sopros e madeiras vespertino': ['Sopros e madeiras vespertino — Turma A', 'Sopros e madeiras vespertino — Turma B']
+      };
       const CHECKS = [
         { id: 'presencas', label: 'Presenças lançadas' },
         { id: 'plano', label: 'Plano de aula do mês' },
@@ -243,6 +266,25 @@
       ];
       const blankRecord = () => Object.fromEntries(CHECKS.map(check => [check.id, false]));
       const makeBlankData = () => Object.fromEntries(CLASSES.map(name => [name, blankRecord()]));
+      function normalizeRecordSet(source, includeLegacy = true) {
+        const normalized = makeBlankData();
+        const copyInto = (target, sourceRecord) => {
+          if (!sourceRecord || typeof sourceRecord !== 'object') return;
+          for (const check of CHECKS) {
+            if (typeof sourceRecord[check.id] === 'boolean') normalized[target][check.id] = sourceRecord[check.id];
+          }
+        };
+        for (const name of CLASSES) copyInto(name, source[name]);
+        if (includeLegacy) {
+          for (const [oldName, newNames] of Object.entries(LEGACY_MIGRATIONS)) {
+            if (!source[oldName] || typeof source[oldName] !== 'object') continue;
+            for (const name of newNames) {
+              if (!source[name]) copyInto(name, source[oldName]);
+            }
+          }
+        }
+        return normalized;
+      }
       const searchInput = document.getElementById('search-input');
       const filterSelect = document.getElementById('filter-select');
       const grid = document.getElementById('class-grid');
@@ -257,14 +299,7 @@
           if (!saved) return;
           const parsed = JSON.parse(saved);
           if (!parsed || parsed.version !== 1 || !parsed.turmas || typeof parsed.turmas !== 'object') return;
-          records = makeBlankData();
-          for (const name of CLASSES) {
-            const savedRecord = parsed.turmas[name];
-            if (!savedRecord || typeof savedRecord !== 'object') continue;
-            for (const check of CHECKS) {
-              if (typeof savedRecord[check.id] === 'boolean') records[name][check.id] = savedRecord[check.id];
-            }
-          }
+          records = normalizeRecordSet(parsed.turmas, true);
         } catch (error) {
           storageAvailable = false;
           setSaveMessage('Não foi possível ler os dados salvos neste navegador.', true);
@@ -370,7 +405,7 @@
       function exportBackup() {
         const payload = {
           sistema: APP_ID,
-          versao: 1,
+          versao: 2,
           exportadoEm: new Date().toISOString(),
           turmas: CLASSES.map(turma => ({ turma, ...records[turma] }))
         };
@@ -388,25 +423,28 @@
 
       function parseBackup(text) {
         const parsed = JSON.parse(text);
-        if (!parsed || parsed.sistema !== APP_ID || parsed.versao !== 1 || !Array.isArray(parsed.turmas) || parsed.turmas.length !== CLASSES.length) {
+        const legacyVersion = parsed && parsed.versao === 1;
+        const expectedClasses = legacyVersion ? LEGACY_CLASSES : CLASSES;
+        if (!parsed || parsed.sistema !== APP_ID || ![1, 2].includes(parsed.versao) || !Array.isArray(parsed.turmas) || parsed.turmas.length !== expectedClasses.length) {
           throw new Error('Esse arquivo não parece ser um backup válido do Controle de Observação do LIS.');
         }
-        const imported = makeBlankData();
         const found = new Set();
+        const sourceRecords = {};
         for (const entry of parsed.turmas) {
-          if (!entry || typeof entry.turma !== 'string' || !CLASSES.includes(entry.turma) || found.has(entry.turma)) {
+          if (!entry || typeof entry.turma !== 'string' || !expectedClasses.includes(entry.turma) || found.has(entry.turma)) {
             throw new Error('O backup contém turma desconhecida ou repetida. Nenhum dado foi alterado.');
           }
           found.add(entry.turma);
+          sourceRecords[entry.turma] = {};
           for (const check of CHECKS) {
             if (typeof entry[check.id] !== 'boolean') {
               throw new Error('O backup está incompleto ou inválido. Nenhum dado foi alterado.');
             }
-            imported[entry.turma][check.id] = entry[check.id];
+            sourceRecords[entry.turma][check.id] = entry[check.id];
           }
         }
-        if (found.size !== CLASSES.length) throw new Error('O backup não contém todas as turmas. Nenhum dado foi alterado.');
-        return imported;
+        if (found.size !== expectedClasses.length) throw new Error('O backup não contém todas as turmas. Nenhum dado foi alterado.');
+        return normalizeRecordSet(sourceRecords, legacyVersion);
       }
 
       document.getElementById('export-button').addEventListener('click', exportBackup);
