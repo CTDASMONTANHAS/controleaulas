@@ -1,0 +1,452 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#145b63">
+  <meta name="description" content="Painel local para acompanhar o preenchimento das informações das turmas no LIS do Instituto.">
+  <title>Controle de Observação · LIS do Instituto</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='15' fill='%23145b63'/%3E%3Cpath d='M19 15h22l7 7v28H19z' fill='%23fff'/%3E%3Cpath d='m24 31 3 3 6-7m-9 13 3 3 6-7m4-5h6m-6 12h6' fill='none' stroke='%23145b63' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #192f39;
+      --muted: #657780;
+      --line: #e3eae9;
+      --canvas: #f3f7f6;
+      --paper: #ffffff;
+      --teal: #145b63;
+      --teal-dark: #104b52;
+      --teal-soft: #e7f4f0;
+      --green: #26755f;
+      --amber: #a65f08;
+      --amber-soft: #fff4df;
+      --shadow: 0 10px 32px rgba(25, 47, 57, .055);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font-synthesis: none;
+      text-rendering: optimizeLegibility;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; background: var(--canvas); color: var(--ink); }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    .shell { width: min(1240px, calc(100% - 40px)); margin: 0 auto; padding: 30px 0 36px; }
+    .topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; margin-bottom: 25px; }
+    .brand { display: flex; align-items: flex-start; gap: 14px; }
+    .brand-mark { flex: 0 0 46px; width: 46px; height: 46px; display: grid; place-items: center; border-radius: 14px; color: #fff; background: var(--teal); box-shadow: 0 7px 16px rgba(20, 91, 99, .18); }
+    .brand-mark svg { width: 25px; height: 25px; }
+    .eyebrow { margin: 1px 0 5px; color: var(--teal); text-transform: uppercase; letter-spacing: .12em; font-size: 11px; font-weight: 800; }
+    h1 { margin: 0; font-size: clamp(23px, 3vw, 30px); line-height: 1.2; letter-spacing: -.035em; }
+    .subtitle { margin: 7px 0 0; color: var(--muted); font-size: 14px; }
+    .actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 9px; }
+    .button { display: inline-flex; justify-content: center; align-items: center; min-height: 40px; gap: 8px; padding: 9px 13px; border: 1px solid #d8e2e0; border-radius: 10px; background: white; color: var(--ink); font-size: 13px; font-weight: 700; transition: border-color .15s, background .15s, transform .15s; }
+    .button:hover { border-color: #a8c4bf; background: #fbfdfc; }
+    .button:active { transform: translateY(1px); }
+    .button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid rgba(20, 91, 99, .2); outline-offset: 2px; }
+    .button-primary { color: white; background: var(--teal); border-color: var(--teal); }
+    .button-primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+    .button svg { width: 16px; height: 16px; }
+    .overview { display: grid; grid-template-columns: minmax(300px, 1.5fr) repeat(2, minmax(170px, .8fr)); gap: 14px; margin-bottom: 17px; }
+    .overview-card { min-height: 139px; background: var(--paper); border: 1px solid var(--line); border-radius: 16px; box-shadow: var(--shadow); padding: 19px 20px; }
+    .overall-card { background: linear-gradient(130deg, #145b63 0%, #174e58 100%); color: white; border-color: transparent; }
+    .overall-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+    .overline { margin: 0 0 7px; font-size: 12px; font-weight: 700; opacity: .78; }
+    .overall-title { margin: 0; font-size: 17px; letter-spacing: -.01em; }
+    .overall-percent { font-size: 30px; font-weight: 800; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .overall-caption { margin: 8px 0 16px; font-size: 12px; opacity: .8; }
+    .track { height: 8px; border-radius: 99px; background: rgba(255,255,255,.2); overflow: hidden; }
+    .track > span { display: block; width: 0; height: 100%; border-radius: inherit; background: #a9e0cb; transition: width .22s ease; }
+    .metric-label { margin: 0; color: var(--muted); font-size: 12px; font-weight: 700; }
+    .metric-value { margin: 13px 0 5px; color: var(--ink); font-size: 31px; font-weight: 800; line-height: 1; letter-spacing: -.04em; font-variant-numeric: tabular-nums; }
+    .metric-note { margin: 0; color: var(--muted); font-size: 12px; }
+    .toolbar { display: flex; align-items: center; gap: 12px; margin: 18px 0 14px; padding: 12px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    .search-wrap { display: flex; flex: 1 1 310px; align-items: center; min-width: 180px; gap: 9px; padding: 0 11px; height: 42px; border: 1px solid #dfe7e6; border-radius: 9px; background: #fcfdfd; color: #819099; }
+    .search-wrap svg { flex: 0 0 17px; width: 17px; height: 17px; }
+    .search-wrap input { width: 100%; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 13px; }
+    .search-wrap input::placeholder { color: #89979d; }
+    .filter-select { height: 42px; min-width: 190px; padding: 0 34px 0 12px; border: 1px solid #dfe7e6; border-radius: 9px; color: var(--ink); background: #fcfdfd; font-size: 13px; }
+    .result-count { margin-left: auto; padding: 0 7px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+    .class-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
+    .class-card { min-width: 0; padding: 17px 18px 16px; background: var(--paper); border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow); }
+    .class-card.is-complete { border-color: #c5e2d6; }
+    .class-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+    .class-title { margin: 0; font-size: 15px; line-height: 1.4; letter-spacing: -.012em; }
+    .class-state { display: inline-flex; align-items: center; flex: 0 0 auto; gap: 5px; margin-top: 1px; padding: 5px 8px; border-radius: 999px; color: #8a550e; background: var(--amber-soft); font-size: 10px; font-weight: 800; white-space: nowrap; }
+    .class-state.done { color: #1d684f; background: var(--teal-soft); }
+    .class-state-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+    .class-progress { display: flex; align-items: center; gap: 10px; margin: 10px 0 13px; }
+    .class-track { flex: 1; height: 5px; border-radius: 20px; background: #edf1f0; overflow: hidden; }
+    .class-track span { display: block; height: 100%; border-radius: inherit; background: #6aa895; transition: width .2s ease; }
+    .class-progress-text { min-width: 61px; color: var(--muted); text-align: right; font-size: 10px; font-weight: 700; font-variant-numeric: tabular-nums; }
+    .check-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; }
+    .check-item { display: flex; align-items: flex-start; min-height: 43px; gap: 9px; padding: 8px 9px; border: 1px solid #edf1f0; border-radius: 9px; background: #fbfcfc; color: #425761; font-size: 11px; line-height: 1.35; cursor: pointer; transition: background .14s, border-color .14s; }
+    .check-item:hover { border-color: #d1e3df; background: #f5faf8; }
+    .check-item:has(input:checked) { border-color: #d5eae2; background: #f4faf7; }
+    .check-item input { flex: 0 0 15px; width: 15px; height: 15px; margin: 1px 0 0; accent-color: var(--green); cursor: pointer; }
+    .check-copy { display: block; }
+    .check-detail { display: block; margin-top: 2px; color: #819097; font-size: 10px; }
+    .empty-state { grid-column: 1 / -1; padding: 44px 18px; text-align: center; background: var(--paper); border: 1px dashed #cbd8d6; border-radius: 14px; color: var(--muted); }
+    .empty-state strong { display: block; margin-bottom: 5px; color: var(--ink); font-size: 15px; }
+    .save-note { display: flex; align-items: center; gap: 7px; margin: 16px 2px 0; color: var(--muted); font-size: 11px; }
+    .save-dot { width: 7px; height: 7px; border-radius: 50%; background: #66a78f; }
+    .save-note.error { color: #963d34; }
+    .save-note.error .save-dot { background: #bf574c; }
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+    #backup-input { display: none; }
+    @media (max-width: 850px) {
+      .overview { grid-template-columns: minmax(250px, 1.2fr) repeat(2, minmax(140px, .8fr)); }
+      .toolbar { flex-wrap: wrap; }
+      .search-wrap { flex-basis: 100%; }
+      .result-count { margin-left: auto; }
+      .class-grid { gap: 10px; }
+    }
+    @media (max-width: 620px) {
+      .shell { width: min(100% - 26px, 520px); padding-top: 20px; }
+      .topbar { display: block; }
+      .brand { gap: 11px; }
+      .brand-mark { flex-basis: 40px; width: 40px; height: 40px; border-radius: 12px; }
+      .subtitle { max-width: 380px; font-size: 13px; line-height: 1.5; }
+      .actions { justify-content: flex-start; margin: 17px 0 0 51px; }
+      .button { min-height: 38px; padding: 8px 10px; font-size: 12px; }
+      .overview { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+      .overview-card { min-height: 119px; padding: 15px; border-radius: 13px; }
+      .overall-card { grid-column: 1 / -1; min-height: 133px; }
+      .metric-value { margin-top: 12px; font-size: 27px; }
+      .toolbar { gap: 9px; padding: 9px; margin-top: 13px; }
+      .search-wrap { flex-basis: 100%; }
+      .filter-select { flex: 1; min-width: 0; }
+      .result-count { padding-right: 3px; font-size: 11px; }
+      .class-grid { grid-template-columns: 1fr; }
+      .class-card { padding: 15px; }
+    }
+    @media print {
+      :root { --canvas: #fff; --shadow: none; }
+      body { background: #fff; color: #111; }
+      .shell { width: 100%; padding: 0; }
+      .actions, .toolbar, .save-note { display: none !important; }
+      .topbar { margin-bottom: 13px; }
+      .brand-mark { box-shadow: none; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .overview { grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; margin-bottom: 10px; }
+      .overview-card, .class-card { box-shadow: none; break-inside: avoid; }
+      .overall-card { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      .class-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+      .class-card { padding: 11px; }
+      .check-item { min-height: 35px; padding: 6px; font-size: 10px; }
+      .check-item input { print-color-adjust: exact; }
+      .empty-state { display: none; }
+      @page { size: auto; margin: 14mm; }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M7 3.75h7.2L18 7.6v12.65H7V3.75Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M14 4v4h4M9.3 11.1l1.35 1.35 2.45-2.7M14.7 11.4h1.4M9.3 15.8l1.35 1.35 2.45-2.7m1.6.3h1.4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div>
+          <p class="eyebrow">Instituto · LIS</p>
+          <h1>Controle de observação</h1>
+          <p class="subtitle">Acompanhe o preenchimento das informações de cada turma.</p>
+        </div>
+      </div>
+      <div class="actions" aria-label="Ações do painel">
+        <button class="button" id="export-button" type="button" title="Baixar uma cópia dos dados em JSON">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 2.8v9.1m0 0 3.4-3.4M10 11.9 6.6 8.5M3.8 13.5v2.7h12.4v-2.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Exportar backup
+        </button>
+        <button class="button" id="import-button" type="button" title="Restaurar dados de um arquivo JSON">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M10 12.8V3.7m0 0L6.6 7.1M10 3.7l3.4 3.4M3.8 13.5v2.7h12.4v-2.7" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Importar
+        </button>
+        <button class="button button-primary" id="print-button" type="button" title="Imprimir ou salvar como PDF">
+          <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="M5.5 7V3.5h9V7m-9 6H4a1.5 1.5 0 0 1-1.5-1.5v-3A1.5 1.5 0 0 1 4 7h12a1.5 1.5 0 0 1 1.5 1.5v3A1.5 1.5 0 0 1 16 13h-1.5m-9 0v3.5h9V13h-9Z" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M14.7 9.8h.1" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
+          Imprimir
+        </button>
+        <input id="backup-input" type="file" accept=".json,application/json" aria-label="Selecionar arquivo de backup JSON">
+      </div>
+    </header>
+
+    <section class="overview" aria-label="Resumo do acompanhamento">
+      <article class="overview-card overall-card">
+        <div class="overall-head">
+          <div>
+            <p class="overline">Progresso geral</p>
+            <h2 class="overall-title">Informações das turmas</h2>
+          </div>
+          <span class="overall-percent" id="overall-percent">0%</span>
+        </div>
+        <p class="overall-caption" id="overall-caption">0 de 75 verificações concluídas</p>
+        <div class="track" role="progressbar" id="overall-progress" aria-label="Progresso geral" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span id="overall-bar"></span></div>
+      </article>
+      <article class="overview-card">
+        <p class="metric-label">Turmas acompanhadas</p>
+        <p class="metric-value" id="total-classes">15</p>
+        <p class="metric-note">No controle deste período</p>
+      </article>
+      <article class="overview-card">
+        <p class="metric-label">Turmas completas</p>
+        <p class="metric-value" id="complete-classes">0</p>
+        <p class="metric-note">Todos os itens conferidos</p>
+      </article>
+    </section>
+
+    <section class="toolbar" aria-label="Buscar e filtrar turmas">
+      <label class="search-wrap">
+        <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><circle cx="8.8" cy="8.8" r="5.8" stroke="currentColor" stroke-width="1.6"/><path d="m13.2 13.2 4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>
+        <span class="sr-only">Buscar turma</span>
+        <input type="search" id="search-input" placeholder="Buscar uma turma..." autocomplete="off">
+      </label>
+      <label class="sr-only" for="filter-select">Filtrar turmas</label>
+      <select class="filter-select" id="filter-select">
+        <option value="all">Todas as turmas</option>
+        <option value="pending">Com pendências</option>
+        <option value="complete">Tudo concluído</option>
+        <option value="communication">Comunicação pendente</option>
+      </select>
+      <span class="result-count" id="result-count" aria-live="polite">15 turmas</span>
+    </section>
+
+    <section class="class-grid" id="class-grid" aria-label="Checklist por turma"></section>
+    <div class="save-note" id="save-note" role="status" aria-live="polite"><span class="save-dot" aria-hidden="true"></span><span id="save-message">As alterações ficam salvas automaticamente neste navegador.</span></div>
+  </main>
+
+  <script>
+    (() => {
+      'use strict';
+      const APP_ID = 'lis-controle-observacao';
+      const STORAGE_KEY = 'lis-controle-observacao-v1';
+      const CLASSES = [
+        'Coral infantil matutino',
+        'Coral infantil vespertino',
+        'Vôlei feminino',
+        'Vôlei OAB',
+        'Piano 01',
+        'Piano 02',
+        'Vôlei de VNI',
+        'Orquestra Jonice Tristão matutino',
+        'Orquestra Jonice Tristão vespertino 1',
+        'Orquestra Jonice Tristão vespertino 2',
+        'Orquestra Jonice Tristão noturno',
+        'Orquestra de violas 01',
+        'Orquestra de violas 02',
+        'Sopros e madeiras matutino',
+        'Sopros e madeiras vespertino'
+      ];
+      const CHECKS = [
+        { id: 'presencas', label: 'Presenças lançadas' },
+        { id: 'plano', label: 'Plano de aula do mês' },
+        { id: 'fotos', label: 'Fotos das aulas' },
+        { id: 'relatorio', label: 'Relatório da aula' },
+        { id: 'comunicado', label: 'Professor comunicado', detail: 'Sobre o que falta realizar' }
+      ];
+      const blankRecord = () => Object.fromEntries(CHECKS.map(check => [check.id, false]));
+      const makeBlankData = () => Object.fromEntries(CLASSES.map(name => [name, blankRecord()]));
+      const searchInput = document.getElementById('search-input');
+      const filterSelect = document.getElementById('filter-select');
+      const grid = document.getElementById('class-grid');
+      const saveNote = document.getElementById('save-note');
+      const saveMessage = document.getElementById('save-message');
+      let records = makeBlankData();
+      let storageAvailable = true;
+
+      function readStoredData() {
+        try {
+          const saved = localStorage.getItem(STORAGE_KEY);
+          if (!saved) return;
+          const parsed = JSON.parse(saved);
+          if (!parsed || parsed.version !== 1 || !parsed.turmas || typeof parsed.turmas !== 'object') return;
+          records = makeBlankData();
+          for (const name of CLASSES) {
+            const savedRecord = parsed.turmas[name];
+            if (!savedRecord || typeof savedRecord !== 'object') continue;
+            for (const check of CHECKS) {
+              if (typeof savedRecord[check.id] === 'boolean') records[name][check.id] = savedRecord[check.id];
+            }
+          }
+        } catch (error) {
+          storageAvailable = false;
+          setSaveMessage('Não foi possível ler os dados salvos neste navegador.', true);
+        }
+      }
+
+      function setSaveMessage(message, isError = false) {
+        saveMessage.textContent = message;
+        saveNote.classList.toggle('error', isError);
+      }
+
+      function saveData() {
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, turmas: records }));
+          storageAvailable = true;
+          const time = new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date());
+          setSaveMessage(`Salvo automaticamente neste navegador às ${time}.`);
+        } catch (error) {
+          storageAvailable = false;
+          setSaveMessage('O navegador não conseguiu salvar. Exporte um backup para não perder as alterações.', true);
+        }
+      }
+
+      function normalizeText(value) {
+        return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLocaleLowerCase('pt-BR');
+      }
+
+      function countDone(record) {
+        return CHECKS.reduce((count, check) => count + (record[check.id] ? 1 : 0), 0);
+      }
+
+      function renderSummary() {
+        let done = 0;
+        let complete = 0;
+        for (const name of CLASSES) {
+          const count = countDone(records[name]);
+          done += count;
+          if (count === CHECKS.length) complete += 1;
+        }
+        const total = CLASSES.length * CHECKS.length;
+        const percent = Math.round((done / total) * 100);
+        document.getElementById('overall-percent').textContent = `${percent}%`;
+        document.getElementById('overall-caption').textContent = `${done} de ${total} verificações concluídas`;
+        document.getElementById('overall-bar').style.width = `${percent}%`;
+        const progress = document.getElementById('overall-progress');
+        progress.setAttribute('aria-valuenow', String(percent));
+        document.getElementById('total-classes').textContent = String(CLASSES.length);
+        document.getElementById('complete-classes').textContent = String(complete);
+      }
+
+      function matchesFilter(name, record, query, filter) {
+        if (query && !normalizeText(name).includes(query)) return false;
+        const done = countDone(record);
+        if (filter === 'pending') return done < CHECKS.length;
+        if (filter === 'complete') return done === CHECKS.length;
+        if (filter === 'communication') return !record.comunicado;
+        return true;
+      }
+
+      function renderCards() {
+        const query = normalizeText(searchInput.value.trim());
+        const filter = filterSelect.value;
+        const visible = CLASSES.filter(name => matchesFilter(name, records[name], query, filter));
+        document.getElementById('result-count').textContent = `${visible.length} ${visible.length === 1 ? 'turma' : 'turmas'}`;
+
+        if (visible.length === 0) {
+          grid.innerHTML = '<div class="empty-state"><strong>Nenhuma turma encontrada</strong>Experimente mudar a busca ou selecionar outro filtro.</div>';
+          return;
+        }
+
+        grid.innerHTML = visible.map(name => {
+          const record = records[name];
+          const done = countDone(record);
+          const percent = Math.round((done / CHECKS.length) * 100);
+          const isComplete = done === CHECKS.length;
+          const checksMarkup = CHECKS.map(check => `
+            <label class="check-item">
+              <input type="checkbox" data-class="${name}" data-check="${check.id}" ${record[check.id] ? 'checked' : ''} aria-label="${check.label}${check.id === 'comunicado' ? ' sobre o que falta realizar' : ''} — ${name}">
+              <span class="check-copy">${check.label}${check.detail ? `<span class="check-detail">${check.detail}</span>` : ''}</span>
+            </label>
+          `).join('');
+          return `
+            <article class="class-card${isComplete ? ' is-complete' : ''}">
+              <div class="class-header">
+                <h2 class="class-title">${name}</h2>
+                <span class="class-state${isComplete ? ' done' : ''}"><span class="class-state-dot" aria-hidden="true"></span>${isComplete ? 'Completa' : 'Pendente'}</span>
+              </div>
+              <div class="class-progress">
+                <div class="class-track" role="progressbar" aria-label="Progresso: ${name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${percent}"><span style="width:${percent}%"></span></div>
+                <span class="class-progress-text">${done} de ${CHECKS.length} itens</span>
+              </div>
+              <div class="check-list">${checksMarkup}</div>
+            </article>
+          `;
+        }).join('');
+      }
+
+      function renderAll() {
+        renderSummary();
+        renderCards();
+      }
+
+      function exportBackup() {
+        const payload = {
+          sistema: APP_ID,
+          versao: 1,
+          exportadoEm: new Date().toISOString(),
+          turmas: CLASSES.map(turma => ({ turma, ...records[turma] }))
+        };
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `backup-controle-lis-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+        setSaveMessage('Backup JSON exportado. Guarde o arquivo em um local seguro.');
+      }
+
+      function parseBackup(text) {
+        const parsed = JSON.parse(text);
+        if (!parsed || parsed.sistema !== APP_ID || parsed.versao !== 1 || !Array.isArray(parsed.turmas) || parsed.turmas.length !== CLASSES.length) {
+          throw new Error('Esse arquivo não parece ser um backup válido do Controle de Observação do LIS.');
+        }
+        const imported = makeBlankData();
+        const found = new Set();
+        for (const entry of parsed.turmas) {
+          if (!entry || typeof entry.turma !== 'string' || !CLASSES.includes(entry.turma) || found.has(entry.turma)) {
+            throw new Error('O backup contém turma desconhecida ou repetida. Nenhum dado foi alterado.');
+          }
+          found.add(entry.turma);
+          for (const check of CHECKS) {
+            if (typeof entry[check.id] !== 'boolean') {
+              throw new Error('O backup está incompleto ou inválido. Nenhum dado foi alterado.');
+            }
+            imported[entry.turma][check.id] = entry[check.id];
+          }
+        }
+        if (found.size !== CLASSES.length) throw new Error('O backup não contém todas as turmas. Nenhum dado foi alterado.');
+        return imported;
+      }
+
+      document.getElementById('export-button').addEventListener('click', exportBackup);
+      document.getElementById('import-button').addEventListener('click', () => document.getElementById('backup-input').click());
+      document.getElementById('print-button').addEventListener('click', () => window.print());
+      document.getElementById('backup-input').addEventListener('change', async event => {
+        const file = event.target.files && event.target.files[0];
+        if (!file) return;
+        try {
+          const imported = parseBackup(await file.text());
+          if (!window.confirm('Importar este backup substituirá todos os dados atuais neste navegador. Deseja continuar?')) return;
+          records = imported;
+          saveData();
+          renderAll();
+          setSaveMessage('Backup importado e salvo neste navegador.');
+        } catch (error) {
+          window.alert(error instanceof SyntaxError ? 'Não foi possível ler o arquivo JSON. Nenhum dado foi alterado.' : error.message);
+        } finally {
+          event.target.value = '';
+        }
+      });
+      grid.addEventListener('change', event => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || input.type !== 'checkbox') return;
+        const name = input.dataset.class;
+        const id = input.dataset.check;
+        if (!CLASSES.includes(name) || !CHECKS.some(check => check.id === id)) return;
+        records[name][id] = input.checked;
+        saveData();
+        renderAll();
+        const restored = [...grid.querySelectorAll('input[type="checkbox"]')].find(item => item.dataset.class === name && item.dataset.check === id);
+        if (restored) restored.focus({ preventScroll: true });
+      });
+      searchInput.addEventListener('input', renderCards);
+      filterSelect.addEventListener('change', renderCards);
+
+      readStoredData();
+      renderAll();
+      if (!storageAvailable) setSaveMessage('Armazenamento local indisponível. Exporte um backup para guardar suas alterações.', true);
+    })();
+  </script>
+</body>
+</html>
